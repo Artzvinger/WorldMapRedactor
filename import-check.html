@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Проверка импорта Azgaar</title>
+    <style>
+      body {
+        margin: 0;
+        background: #14171b;
+        color: #e7eaef;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+      }
+      #status {
+        padding: 10px 14px;
+        font-size: 12px;
+        line-height: 1.5;
+        color: #8e97a5;
+      }
+      #status b {
+        color: #e0b458;
+      }
+      canvas {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <div id="status">загрузка…</div>
+    <script type="module" src="/src/dev/importCheck.ts"></script>
+  </body>
+</html>

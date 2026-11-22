@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Проверка взаимодействий</title>
+    <style>
+      #log {
+        position: fixed;
+        left: 8px;
+        top: 8px;
+        z-index: 99;
+        width: 430px;
+        margin: 0;
+        padding: 10px 12px;
+        background: rgba(12, 14, 18, 0.96);
+        border: 1px solid #2f353f;
+        border-radius: 8px;
+        color: #e7eaef;
+        font: 11px/1.45 'Consolas', monospace;
+        white-space: pre-wrap;
+      }
+      #log b {
+        color: #e0b458;
+      }
+      #log .ok {
+        color: #6faf7f;
+      }
+      #log .fail {
+        color: #d2705f;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <pre id="log"></pre>
+    <script type="module" src="/src/dev/interactionCheck.ts"></script>
+  </body>
+</html>
