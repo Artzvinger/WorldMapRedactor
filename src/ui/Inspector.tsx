@@ -387,6 +387,8 @@ function DocSettings() {
   const tool = useEditor((s) => s.tool);
   const brushRadius = useEditor((s) => s.brushRadius);
   const setBrushRadius = useEditor((s) => s.setBrushRadius);
+  const brushNoise = useEditor((s) => s.brushNoise);
+  const setBrushNoise = useEditor((s) => s.setBrushNoise);
   const brushActive = tool === 'landbrush' || tool === 'waterbrush';
   const counts = {
     cities: doc.features.filter((f) => f.kind === 'city').length,
@@ -410,10 +412,21 @@ function DocSettings() {
               onChange={(e) => setBrushRadius(Number(e.target.value))}
             />
           </Field>
+          <Field label={`Неровность края — ${Math.round(brushNoise * 100)}%`}>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={brushNoise}
+              onChange={(e) => setBrushNoise(Number(e.target.value))}
+            />
+          </Field>
           <div className="empty" style={{ padding: '0' }}>
             {tool === 'waterbrush'
               ? 'Тяни мышью по карте — вода закрашивает и сушу, и импортированный берег.'
               : 'Тяни мышью по карте — суша наращивается поверх моря.'}{' '}
+            «Неровность» добавляет краю рваности: 0% — ровный круг, 100% — клочковатый берег.
             Каждый штрих отменяется одним `Ctrl+Z`.
           </div>
           <div className="kv">

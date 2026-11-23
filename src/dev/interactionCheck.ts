@@ -199,25 +199,41 @@ async function run(): Promise<void> {
     check('отмена возвращает точку', back === 3, `точек: ${back}`);
   }
 
-  /* 4г. кисти суши и воды */
+  /* 4г. кисти суши и воды: три штриха с разной неровностью края */
   useEditor.getState().setBrushRadius(60);
   useEditor.getState().setTool('landbrush');
   {
-    const from = screenOf({ x: 300, y: 1350 });
-    const mid = screenOf({ x: 500, y: 1350 });
-    const to = screenOf({ x: 700, y: 1350 });
-    fire('pointerdown', from);
-    fire('pointermove', mid);
-    fire('pointermove', to);
-    fire('pointerup', to);
-    await tick();
-    const dabs = useEditor.getState().doc.paint;
-    check('кисть суши оставляет мазки', dabs.length > 5 && dabs.every((d) => !d.erase), `мазков: ${dabs.length}`);
+    const strokeAt = async (y: number) => {
+      fire('pointerdown', screenOf({ x: 320, y }));
+      fire('pointermove', screenOf({ x: 560, y: y - 10 }));
+      fire('pointermove', screenOf({ x: 800, y }));
+      fire('pointerup', screenOf({ x: 800, y }));
+      await tick();
+    };
+
+    useEditor.getState().setBrushNoise(0);
+    await strokeAt(1180);
+    const smooth = useEditor.getState().doc.paint.length;
+    check('ровная кисть оставляет мазки', smooth > 5, `мазков: ${smooth}`);
+
+    useEditor.getState().setBrushNoise(0.5);
+    await strokeAt(1310);
+    const middle = useEditor.getState().doc.paint.length;
+
+    useEditor.getState().setBrushNoise(1);
+    await strokeAt(1440);
+    const rough = useEditor.getState().doc.paint.length;
+    check('неровность добавляет кружков', rough > middle && middle > smooth, `${smooth} → ${middle} → ${rough}`);
+
+    const all = useEditor.getState().doc.paint;
+    check('все мазки — суша', all.every((d) => !d.erase), `мазков: ${all.length}`);
 
     useEditor.getState().setTool('waterbrush');
-    const at = screenOf({ x: 500, y: 1350 });
+    useEditor.getState().setBrushNoise(0.3);
+    const at = screenOf({ x: 560, y: 1440 });
     fire('pointerdown', at);
-    fire('pointerup', at);
+    fire('pointermove', screenOf({ x: 600, y: 1440 }));
+    fire('pointerup', screenOf({ x: 600, y: 1440 }));
     await tick();
     const after = useEditor.getState().doc.paint;
     check('кисть воды добавляет стирание', after.some((d) => d.erase), `мазков: ${after.length}`);

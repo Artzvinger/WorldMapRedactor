@@ -5,6 +5,8 @@ import { emptyDoc, migrateDoc, type MapDoc } from './types';
 beforeEach(() => {
   useEditor.getState().loadDoc(emptyDoc('Кисти'));
   useEditor.getState().setBrushRadius(40);
+  // тесты про шаг и радиусы считаем на ровной кисти, неровность проверяем отдельно
+  useEditor.getState().setBrushNoise(0);
 });
 
 describe('кисти суши и воды', () => {
@@ -70,5 +72,50 @@ describe('кисти суши и воды', () => {
     const doc = emptyDoc('Старое') as Partial<MapDoc>;
     delete doc.paint;
     expect(migrateDoc(doc as MapDoc).paint).toEqual([]);
+  });
+});
+
+describe('неровность края кисти', () => {
+  it('при нуле мазок остаётся ровным кругом', () => {
+    useEditor.getState().beginStroke(false, { x: 10, y: 10 });
+    const dabs = useEditor.getState().stroke ?? [];
+    expect(dabs).toHaveLength(1);
+    expect(dabs[0]).toEqual({ x: 10, y: 10, r: 40, erase: false });
+  });
+
+  it('чем больше неровность, тем больше кружков в мазке', () => {
+    const countFor = (noise: number) => {
+      useEditor.getState().setBrushNoise(noise);
+      useEditor.getState().beginStroke(false, { x: 10, y: 10 });
+      const n = (useEditor.getState().stroke ?? []).length;
+      useEditor.getState().endStroke();
+      useEditor.getState().undo();
+      return n;
+    };
+    expect(countFor(0)).toBe(1);
+    expect(countFor(0.5)).toBeGreaterThan(1);
+    expect(countFor(1)).toBeGreaterThan(countFor(0.5));
+  });
+
+  it('кружки не вылезают далеко за радиус кисти', () => {
+    useEditor.getState().setBrushNoise(1);
+    useEditor.getState().beginStroke(false, { x: 0, y: 0 });
+    const dabs = useEditor.getState().stroke ?? [];
+    for (const dab of dabs) {
+      expect(dab.r).toBeLessThanOrEqual(40 + 0.001);
+      expect(dab.r).toBeGreaterThan(0);
+      // смещение плюс радиус — не дальше полутора радиусов от центра
+      expect(Math.hypot(dab.x, dab.y) + dab.r).toBeLessThan(40 * 1.6);
+    }
+  });
+
+  it('неровность запоминается на весь штрих', () => {
+    useEditor.getState().setBrushNoise(0);
+    useEditor.getState().beginStroke(false, { x: 0, y: 0 });
+    useEditor.getState().setBrushNoise(1); // поменяли посреди штриха
+    useEditor.getState().extendStroke({ x: 200, y: 0 });
+    const dabs = useEditor.getState().stroke ?? [];
+    // штрих начался ровным — добавленные точки тоже ровные
+    expect(dabs.every((d) => d.r === 40)).toBe(true);
   });
 });

@@ -48,6 +48,29 @@ function cloneDoc(doc: MapDoc): MapDoc {
   return structuredClone(doc);
 }
 
+/**
+ * Мазки для одной точки штриха. При noise > 0 к основному кругу добавляются
+ * кружки поменьше со смещением — край перестаёт быть ровным.
+ */
+function brushDabs(at: Vec2, r: number, erase: boolean, noise: number): LandDab[] {
+  if (noise <= 0) return [{ x: at.x, y: at.y, r, erase }];
+  const main = { x: at.x, y: at.y, r: r * (1 - noise * 0.3 * Math.random()), erase };
+  const dabs: LandDab[] = [main];
+  const extra = Math.round(noise * 3);
+  for (let i = 0; i < extra; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const spread = r * noise * (0.35 + 0.55 * Math.random());
+    const size = r * (0.3 + 0.45 * Math.random());
+    dabs.push({
+      x: at.x + Math.cos(angle) * spread,
+      y: at.y + Math.sin(angle) * spread,
+      r: Math.max(1, size),
+      erase,
+    });
+  }
+  return dabs;
+}
+
 function saveState(doc: MapDoc): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(doc));
@@ -91,9 +114,16 @@ export interface EditorState {
   viewport: { width: number; height: number };
   /** радиус кисти в мировых единицах */
   brushRadius: number;
+  /** неровность края кисти: 0 — ровный круг, 1 — рваный край */
+  brushNoise: number;
   /** мазки текущего штриха — до отпускания мыши */
   stroke: LandDab[] | null;
+  /** радиус и последняя точка текущего штриха */
+  strokeR: number;
+  strokeNoise: number;
+  strokeLast: Vec2 | null;
   setBrushRadius: (radius: number) => void;
+  setBrushNoise: (noise: number) => void;
   beginStroke: (erase: boolean, at: Vec2) => void;
   extendStroke: (at: Vec2) => void;
   endStroke: () => void;
@@ -171,37 +201,46 @@ export const useEditor = create<EditorState>()((set, get) => ({
   lastTs: 0,
   viewport: { width: 1200, height: 800 },
   brushRadius: 40,
+  brushNoise: 0.45,
   stroke: null,
+  strokeR: 0,
+  strokeNoise: 0,
+  strokeLast: null,
 
   setBrushRadius: (radius) => set({ brushRadius: Math.max(3, Math.min(400, Math.round(radius))) }),
+  setBrushNoise: (noise) => set({ brushNoise: Math.max(0, Math.min(1, noise)) }),
 
-  beginStroke: (erase, at) =>
-    set({ stroke: [{ x: at.x, y: at.y, r: get().brushRadius, erase }] }),
+  beginStroke: (erase, at) => {
+    const r = get().brushRadius;
+    const noise = get().brushNoise;
+    set({ stroke: brushDabs(at, r, erase, noise), strokeR: r, strokeNoise: noise, strokeLast: { ...at } });
+  },
 
   extendStroke: (at) => {
     const stroke = get().stroke;
-    if (!stroke || stroke.length === 0) return;
-    const last = stroke[stroke.length - 1];
-    const d = dist(last, at);
-    const step = Math.max(2, last.r * 0.3);
+    const from = get().strokeLast;
+    const r = get().strokeR;
+    if (!stroke || !from || r <= 0) return;
+    const d = dist(from, at);
+    const step = Math.max(2, r * 0.3);
     if (d < step) return;
     const steps = Math.floor(d / step);
+    const noise = get().strokeNoise;
+    const erase = stroke[0]?.erase ?? false;
     const next = stroke.slice();
+    let last = from;
     for (let i = 1; i <= steps; i++) {
       const t = (i * step) / d;
-      next.push({
-        x: last.x + (at.x - last.x) * t,
-        y: last.y + (at.y - last.y) * t,
-        r: last.r,
-        erase: last.erase,
-      });
+      const p = { x: from.x + (at.x - from.x) * t, y: from.y + (at.y - from.y) * t };
+      next.push(...brushDabs(p, r, erase, noise));
+      last = p;
     }
-    set({ stroke: next });
+    set({ stroke: next, strokeLast: last });
   },
 
   endStroke: () => {
     const stroke = get().stroke;
-    set({ stroke: null });
+    set({ stroke: null, strokeR: 0, strokeNoise: 0, strokeLast: null });
     if (!stroke || stroke.length === 0) return;
     get().commit((d) => {
       d.paint.push(...stroke);
