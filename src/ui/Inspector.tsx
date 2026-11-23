@@ -384,6 +384,10 @@ function DocSettings() {
   const deleteLatinNamed = useEditor((s) => s.deleteLatinNamed);
   const convertWaterPathsToSea = useEditor((s) => s.convertWaterPathsToSea);
   const autoPlaceCityLabels = useEditor((s) => s.autoPlaceCityLabels);
+  const tool = useEditor((s) => s.tool);
+  const brushRadius = useEditor((s) => s.brushRadius);
+  const setBrushRadius = useEditor((s) => s.setBrushRadius);
+  const brushActive = tool === 'landbrush' || tool === 'waterbrush';
   const counts = {
     cities: doc.features.filter((f) => f.kind === 'city').length,
     paths: doc.features.filter((f) => f.kind === 'path').length,
@@ -393,7 +397,32 @@ function DocSettings() {
   const waterPaths = useMemo(() => findWaterPaths(doc), [doc]);
   return (
     <>
-      <div className="panel-title">Карта</div>
+      <div className="panel-title">{brushActive ? 'Кисть' : 'Карта'}</div>
+      {brushActive ? (
+        <div className="insp">
+          <Field label={`Радиус кисти — ${brushRadius}`}>
+            <input
+              type="range"
+              min={5}
+              max={200}
+              step={1}
+              value={brushRadius}
+              onChange={(e) => setBrushRadius(Number(e.target.value))}
+            />
+          </Field>
+          <div className="empty" style={{ padding: '0' }}>
+            {tool === 'waterbrush'
+              ? 'Тяни мышью по карте — вода закрашивает и сушу, и импортированный берег.'
+              : 'Тяни мышью по карте — суша наращивается поверх моря.'}{' '}
+            Каждый штрих отменяется одним `Ctrl+Z`.
+          </div>
+          <div className="kv">
+            <span>Мазков на карте</span>
+            <b>{doc.paint.length}</b>
+          </div>
+        </div>
+      ) : null}
+      <div className="panel-title" style={{ paddingTop: 4 }}>Карта</div>
       <div className="insp">
         <Field label="Название мира">
           <input className="input" value={doc.meta.name} onChange={(e) => setName(e.target.value)} />

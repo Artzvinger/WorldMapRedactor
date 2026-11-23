@@ -300,6 +300,7 @@ export function demoDoc(): MapDoc {
     meta: { name: 'Демо: Велдрин', width: W, height: H },
     style: { ...DEFAULT_STYLE },
     layers: defaultLayers(),
+    paint: [],
     features: [
       { kind: 'land', id: uid('land'), points: COAST.map(([x, y]) => ({ x, y })) },
       ...regions,

@@ -42,6 +42,7 @@ export function parseDoc(text: string): MapDoc {
     style: { ...base.style, ...(parsed.style ?? {}) },
     layers: { ...defaultLayers(), ...(parsed.layers ?? {}) },
     features: parsed.features,
+    paint: Array.isArray(parsed.paint) ? parsed.paint : [],
   };
   return migrateDoc(doc);
 }

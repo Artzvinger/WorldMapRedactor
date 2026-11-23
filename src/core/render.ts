@@ -1,5 +1,6 @@
 import { toWorld, type Camera } from './camera';
 import { shade } from './color';
+import { paintCanvas } from './paint';
 import { formatPopulation } from './text';
 import { boundsIntersect, sampleSmooth, ticksAlong, type Bounds } from './geometry';
 import { CITY_BASE_RADIUS, cityLabelAnchor, cityRadius, featureBounds, labelHalfWidth } from './query';
@@ -12,6 +13,7 @@ import {
   type Draft,
   type Feature,
   type LabelFeature,
+  type LandDab,
   type MapDoc,
   type PathFeature,
   type RegionFeature,
@@ -28,6 +30,10 @@ export interface RenderInput {
   tool: ToolId;
   marquee: Bounds | null;
   snap: Vec2 | null;
+  /** незафиксированные мазки текущего штриха */
+  stroke?: LandDab[] | null;
+  /** кружок под курсором для кистей */
+  brush?: { x: number; y: number; r: number } | null;
   /** true для экспорта: без служебных рамок */
   exportMode?: boolean;
 }
@@ -576,7 +582,7 @@ function drawMarquee(ctx: CanvasRenderingContext2D, m: Bounds, zoom: number): vo
 }
 
 export function renderScene(ctx: CanvasRenderingContext2D, input: RenderInput): void {
-  const { doc, camera, viewport, selection, draft, marquee, snap, exportMode } = input;
+  const { doc, camera, viewport, selection, draft, marquee, snap, brush, exportMode } = input;
   const { width: vw, height: vh } = viewport;
 
   ctx.save();
@@ -613,6 +619,16 @@ export function renderScene(ctx: CanvasRenderingContext2D, input: RenderInput): 
       drawFeature(ctx, f, doc, camera.zoom);
       ctx.restore();
     }
+    // мазки кистей лежат поверх импортированной суши: вода закрашивает берег
+    if (layerId === 'land') {
+      const painted = paintCanvas(doc, input.stroke ?? []);
+      if (painted) {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(painted, 0, 0, doc.meta.width, doc.meta.height);
+        ctx.restore();
+      }
+    }
   }
 
   // подписи городов рисуем поверх остального, чтобы их не перекрывали линии
@@ -631,6 +647,20 @@ export function renderScene(ctx: CanvasRenderingContext2D, input: RenderInput): 
     if (draft) drawDraft(ctx, draft, camera.zoom);
     if (snap) drawSnap(ctx, snap, camera.zoom);
     if (marquee) drawMarquee(ctx, marquee, camera.zoom);
+    if (brush) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(brush.x, brush.y, brush.r, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(224, 180, 88, 0.95)';
+      ctx.lineWidth = 1.4 / camera.zoom;
+      ctx.stroke();
+      ctx.setLineDash([4 / camera.zoom, 3 / camera.zoom]);
+      ctx.beginPath();
+      ctx.arc(brush.x, brush.y, Math.max(0, brush.r - 1.5 / camera.zoom), 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(20, 24, 30, 0.45)';
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   // рамка мира

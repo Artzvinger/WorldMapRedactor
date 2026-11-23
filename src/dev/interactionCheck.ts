@@ -199,7 +199,30 @@ async function run(): Promise<void> {
     check('отмена возвращает точку', back === 3, `точек: ${back}`);
   }
 
-  /* 5. Esc отменяет незавершённую линию */
+  /* 4г. кисти суши и воды */
+  useEditor.getState().setBrushRadius(60);
+  useEditor.getState().setTool('landbrush');
+  {
+    const from = screenOf({ x: 300, y: 1350 });
+    const mid = screenOf({ x: 500, y: 1350 });
+    const to = screenOf({ x: 700, y: 1350 });
+    fire('pointerdown', from);
+    fire('pointermove', mid);
+    fire('pointermove', to);
+    fire('pointerup', to);
+    await tick();
+    const dabs = useEditor.getState().doc.paint;
+    check('кисть суши оставляет мазки', dabs.length > 5 && dabs.every((d) => !d.erase), `мазков: ${dabs.length}`);
+
+    useEditor.getState().setTool('waterbrush');
+    const at = screenOf({ x: 500, y: 1350 });
+    fire('pointerdown', at);
+    fire('pointerup', at);
+    await tick();
+    const after = useEditor.getState().doc.paint;
+    check('кисть воды добавляет стирание', after.some((d) => d.erase), `мазков: ${after.length}`);
+  }
+
   useEditor.getState().setTool('river');
   click({ x: 700, y: 900 });
   click({ x: 800, y: 1000 });

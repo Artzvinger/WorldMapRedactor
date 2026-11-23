@@ -17,9 +17,11 @@ import { IconFit, IconMinus, IconPlus } from './icons';
 type DragState =
   | { mode: 'pan'; lastScreen: Vec2 }
   | { mode: 'feature' | 'vertex'; startWorld: Vec2; featureId: string; vertexIndex?: number }
-  | { mode: 'marquee'; startWorld: Vec2 };
+  | { mode: 'marquee'; startWorld: Vec2 }
+  | { mode: 'paint' };
 
 const DRAW_TOOLS: ToolId[] = ['road', 'rail', 'sea', 'river', 'region'];
+const BRUSH_TOOLS: ToolId[] = ['landbrush', 'waterbrush'];
 
 /**
  * Горячие клавиши привязаны к физической клавише (`e.code`), а не к символу:
@@ -36,6 +38,8 @@ const TOOL_BY_CODE: Record<string, ToolId> = {
   KeyW: 'river',
   KeyG: 'region',
   KeyL: 'label',
+  KeyB: 'landbrush',
+  KeyN: 'waterbrush',
   Digit1: 'select',
   Digit2: 'pan',
   Digit3: 'city',
@@ -77,6 +81,8 @@ export function CanvasView() {
   const draft = useEditor((s) => s.draft);
   const marquee = useEditor((s) => s.marquee);
   const cursorWorld = useEditor((s) => s.cursorWorld);
+  const stroke = useEditor((s) => s.stroke);
+  const brushRadius = useEditor((s) => s.brushRadius);
 
   /* --------------------------------------------------------------- размеры */
 
@@ -150,6 +156,8 @@ export function CanvasView() {
       tool,
       marquee,
       snap,
+      stroke,
+      brush: BRUSH_TOOLS.includes(tool) && cursorWorld ? { x: cursorWorld.x, y: cursorWorld.y, r: brushRadius } : null,
     });
 
     if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('debug')) {
@@ -163,7 +171,7 @@ export function CanvasView() {
       ctx.fillText(`viewport ${viewport.width}×${viewport.height} · zoom ${camera.zoom.toFixed(4)} · inner ${window.innerWidth}×${window.innerHeight}`, 8, 42);
       ctx.restore();
     }
-  }, [doc, camera, viewport, selection, draft, tool, marquee, snap]);
+  }, [doc, camera, viewport, selection, draft, tool, marquee, snap, stroke, brushRadius, cursorWorld]);
 
   /* ------------------------------------------------------------- указатель */
 
@@ -195,6 +203,12 @@ export function CanvasView() {
       }
       if (st.tool === 'label') {
         st.addLabel(world);
+        return;
+      }
+      if (BRUSH_TOOLS.includes(st.tool)) {
+        st.beginStroke(st.tool === 'waterbrush', world);
+        dragRef.current = { mode: 'paint' };
+        capturePointer(canvas, e.pointerId);
         return;
       }
       if (DRAW_TOOLS.includes(st.tool)) {
@@ -259,6 +273,8 @@ export function CanvasView() {
         st.transformVertex(drag.featureId, drag.vertexIndex, world.x - drag.startWorld.x, world.y - drag.startWorld.y);
       } else if (drag.mode === 'marquee') {
         st.setMarquee(makeMarqueeFromDrag(drag.startWorld, world));
+      } else if (drag.mode === 'paint') {
+        st.extendStroke(world);
       }
     },
     [localPoint],
@@ -271,6 +287,7 @@ export function CanvasView() {
     if (!drag) return;
     if (drag.mode === 'feature' || drag.mode === 'vertex') st.endTransform();
     if (drag.mode === 'marquee') st.finishMarquee(e.shiftKey);
+    if (drag.mode === 'paint') st.endStroke();
   }, []);
 
   const onDoubleClick = useCallback(() => {
@@ -418,6 +435,10 @@ export function CanvasView() {
         return 'Клик — начало линии · концы цепляются к городам';
       case 'region':
         return 'Клик — начало контура региона';
+      case 'landbrush':
+        return 'Тяни мышью — дорисовываешь сушу · радиус кисти справа';
+      case 'waterbrush':
+        return 'Тяни мышью — закрашиваешь воду · радиус кисти справа';
       case 'pan':
         return 'Тяни карту мышью · колесо — масштаб';
       default:
@@ -437,7 +458,14 @@ export function CanvasView() {
         onPointerLeave={onPointerLeave}
         onDoubleClick={onDoubleClick}
         onContextMenu={(e) => e.preventDefault()}
-        style={{ cursor: tool === 'pan' ? 'grab' : DRAW_TOOLS.includes(tool) || tool === 'city' || tool === 'label' ? 'crosshair' : 'default' }}
+        style={{
+          cursor:
+            tool === 'pan'
+              ? 'grab'
+              : DRAW_TOOLS.includes(tool) || BRUSH_TOOLS.includes(tool) || tool === 'city' || tool === 'label'
+                ? 'crosshair'
+                : 'default',
+        }}
       />
       <div className="hint">{hint}</div>
       <div className="zoom-box">

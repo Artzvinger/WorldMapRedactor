@@ -9,6 +9,8 @@ import {
   IconRegion,
   IconRiver,
   IconRoad,
+  IconLandBrush,
+  IconWaterBrush,
   IconSea,
   IconSelect,
 } from './icons';
@@ -31,6 +33,8 @@ const TOOLS: ToolDef[] = [
   { id: 'river', label: 'Река', key: 'W', icon: IconRiver },
   { id: 'region', label: 'Регион', key: 'G', icon: IconRegion, divider: true },
   { id: 'label', label: 'Подпись', key: 'L', icon: IconLabel },
+  { id: 'landbrush', label: 'Кисть суши', key: 'B', icon: IconLandBrush, divider: true },
+  { id: 'waterbrush', label: 'Кисть воды', key: 'N', icon: IconWaterBrush },
 ];
 
 export function Tools() {

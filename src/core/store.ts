@@ -4,6 +4,7 @@ import { dist, distToSegment, rectFromPoints, type Bounds } from './geometry';
 import { hitTest, hitVertex, labelHalfWidth, nearestCity, cityLabelBox, cityRadius } from './query';
 import { featureLabelText, hasVisibleLabel, isLatinOnly } from './text';
 import { findWaterPaths, seaDefaults } from './water';
+import { resetPaintCache } from './paint';
 import { demoDoc } from './demo';
 import {
   CITY_DEFAULT_LABEL,
@@ -22,6 +23,7 @@ import {
   type Draft,
   type Feature,
   type LabelFeature,
+  type LandDab,
   type LayerId,
   type LabelSide,
   type MapDoc,
@@ -87,6 +89,14 @@ export interface EditorState {
   lastTag: string | null;
   lastTs: number;
   viewport: { width: number; height: number };
+  /** радиус кисти в мировых единицах */
+  brushRadius: number;
+  /** мазки текущего штриха — до отпускания мыши */
+  stroke: LandDab[] | null;
+  setBrushRadius: (radius: number) => void;
+  beginStroke: (erase: boolean, at: Vec2) => void;
+  extendStroke: (at: Vec2) => void;
+  endStroke: () => void;
 
   setTool: (tool: ToolId) => void;
   setCamera: (camera: Camera) => void;
@@ -160,6 +170,43 @@ export const useEditor = create<EditorState>()((set, get) => ({
   lastTag: null,
   lastTs: 0,
   viewport: { width: 1200, height: 800 },
+  brushRadius: 40,
+  stroke: null,
+
+  setBrushRadius: (radius) => set({ brushRadius: Math.max(3, Math.min(400, Math.round(radius))) }),
+
+  beginStroke: (erase, at) =>
+    set({ stroke: [{ x: at.x, y: at.y, r: get().brushRadius, erase }] }),
+
+  extendStroke: (at) => {
+    const stroke = get().stroke;
+    if (!stroke || stroke.length === 0) return;
+    const last = stroke[stroke.length - 1];
+    const d = dist(last, at);
+    const step = Math.max(2, last.r * 0.3);
+    if (d < step) return;
+    const steps = Math.floor(d / step);
+    const next = stroke.slice();
+    for (let i = 1; i <= steps; i++) {
+      const t = (i * step) / d;
+      next.push({
+        x: last.x + (at.x - last.x) * t,
+        y: last.y + (at.y - last.y) * t,
+        r: last.r,
+        erase: last.erase,
+      });
+    }
+    set({ stroke: next });
+  },
+
+  endStroke: () => {
+    const stroke = get().stroke;
+    set({ stroke: null });
+    if (!stroke || stroke.length === 0) return;
+    get().commit((d) => {
+      d.paint.push(...stroke);
+    });
+  },
 
   setTool: (tool) => set({ tool, draft: null, marquee: null }),
   setCamera: (camera) => set({ camera }),
@@ -626,6 +673,7 @@ export const useEditor = create<EditorState>()((set, get) => ({
   setCursorWorld: (p) => set({ cursorWorld: p }),
 
   loadDoc: (doc) => {
+    resetPaintCache();
     const migrated = migrateDoc(doc);
     saveState(migrated);
     set({ doc: migrated, selection: [], past: [], future: [], draft: null, dragBase: null });

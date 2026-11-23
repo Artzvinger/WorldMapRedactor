@@ -84,6 +84,20 @@ export const IconLabel = (p: IconProps) => (
   </Svg>
 );
 
+export const IconLandBrush = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M15.5 3.5l5 5-8 8-5-5z" />
+    <path d="M7.5 11.5l5 5-2.2 2.2a2.7 2.7 0 01-3.8-3.8z" fill="currentColor" stroke="none" />
+  </Svg>
+);
+
+export const IconWaterBrush = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 3.5c3.2 4 5.5 6.9 5.5 10a5.5 5.5 0 01-11 0c0-3.1 2.3-6 5.5-10z" />
+    <path d="M9 14.2c.9 0 .9 1.3 1.8 1.3s.9-1.3 1.8-1.3 1 1.3 1.9 1.3" strokeWidth={1.2} />
+  </Svg>
+);
+
 export const IconEye = (p: IconProps) => (
   <Svg {...p}>
     <path d="M2.5 12S6 6.2 12 6.2 21.5 12 21.5 12 18 17.8 12 17.8 2.5 12 2.5 12z" />

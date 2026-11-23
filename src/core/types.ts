@@ -12,6 +12,8 @@ export const TOOL_IDS = [
   'river',
   'region',
   'label',
+  'landbrush',
+  'waterbrush',
 ] as const;
 export type ToolId = (typeof TOOL_IDS)[number];
 
@@ -25,6 +27,8 @@ export const TOOL_LABELS: Record<ToolId, string> = {
   river: 'Река',
   region: 'Регион',
   label: 'Подпись',
+  landbrush: 'Кисть суши',
+  waterbrush: 'Кисть воды',
 };
 
 export interface Draft {
@@ -253,6 +257,16 @@ export interface MapDoc {
   style: MapStyle;
   layers: Record<LayerId, LayerState>;
   features: Feature[];
+  /** мазки кистей суши и воды */
+  paint: LandDab[];
+}
+
+/** Мазок кисти: круг в мировых координатах. erase — вода, иначе суша. */
+export interface LandDab {
+  x: number;
+  y: number;
+  r: number;
+  erase: boolean;
 }
 
 export const DEFAULT_STYLE: MapStyle = {
@@ -287,6 +301,7 @@ export function emptyDoc(name = 'Новый мир'): MapDoc {
     style: { ...DEFAULT_STYLE },
     layers: defaultLayers(),
     features: [],
+    paint: [],
   };
 }
 
@@ -337,6 +352,7 @@ export function newId(prefix = 'f'): string {
  * такие линии становятся обычными дорогами, чтобы ничего не потерялось.
  */
 export function migrateDoc(doc: MapDoc): MapDoc {
+  if (!Array.isArray(doc.paint)) doc.paint = [];
   for (const f of doc.features) {
     if (f.kind !== 'path') continue;
     if ((f.pathKind as string) !== 'trail') continue;
