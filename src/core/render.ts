@@ -612,7 +612,9 @@ export function renderScene(ctx: CanvasRenderingContext2D, input: RenderInput): 
     const alpha = layer.opacity;
     if (alpha <= 0) continue;
 
-    const painted = layerId === 'land' ? paintCanvases(doc, input.stroke ?? []) : null;
+    const painted = layerId === 'land' ? paintCanvases(doc, input.stroke ?? [], camera.zoom) : null;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
     // сначала тёмная кайма нарисованной суши: она лежит под полигонами,
     // чтобы не перечёркивать уже существующий берег
