@@ -1,6 +1,6 @@
 import { toWorld, type Camera } from './camera';
 import { shade } from './color';
-import { paintCanvas } from './paint';
+import { paintCanvases } from './paint';
 import { formatPopulation } from './text';
 import { boundsIntersect, sampleSmooth, ticksAlong, type Bounds } from './geometry';
 import { CITY_BASE_RADIUS, cityLabelAnchor, cityRadius, featureBounds, labelHalfWidth } from './query';
@@ -611,6 +611,18 @@ export function renderScene(ctx: CanvasRenderingContext2D, input: RenderInput): 
     if (!layer.visible) continue;
     const alpha = layer.opacity;
     if (alpha <= 0) continue;
+
+    const painted = layerId === 'land' ? paintCanvases(doc, input.stroke ?? []) : null;
+
+    // сначала тёмная кайма нарисованной суши: она лежит под полигонами,
+    // чтобы не перечёркивать уже существующий берег
+    if (painted?.edge) {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(painted.edge, 0, 0, doc.meta.width, doc.meta.height);
+      ctx.restore();
+    }
+
     for (const f of doc.features) {
       if (layerOf(f) !== layerId) continue;
       if (!inView(f, view)) continue;
@@ -619,15 +631,20 @@ export function renderScene(ctx: CanvasRenderingContext2D, input: RenderInput): 
       drawFeature(ctx, f, doc, camera.zoom);
       ctx.restore();
     }
-    // мазки кистей лежат поверх импортированной суши: вода закрашивает берег
-    if (layerId === 'land') {
-      const painted = paintCanvas(doc, input.stroke ?? []);
-      if (painted) {
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        ctx.drawImage(painted, 0, 0, doc.meta.width, doc.meta.height);
-        ctx.restore();
-      }
+
+    // поверх полигонов: закрываем их береговую линию там, куда легла кисть
+    if (painted?.fill) {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(painted.fill, 0, 0, doc.meta.width, doc.meta.height);
+      ctx.restore();
+    }
+    // вода поверх всего: кисть воды закрашивает и импортированный берег
+    if (painted?.water) {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(painted.water, 0, 0, doc.meta.width, doc.meta.height);
+      ctx.restore();
     }
   }
 
